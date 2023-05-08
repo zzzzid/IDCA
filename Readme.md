@@ -20,6 +20,8 @@ The folder `algorithm` contains all the code we used.
 
  `OpenTuner.py` is the OpenTuner algorithm.
 
+ `IDCA.py` is our proposed algorithm
+
 We add a README file in the `algorithm` folder to help you understand and run the programs.
 
 ## Result
