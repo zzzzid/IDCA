@@ -74,22 +74,6 @@ class Executor:
                 enabled_opts_o3.remove('-fno-threadsafe-statics')
             self.o3_opts = enabled_opts_o3
 
-        elif 'clang' in self.driver:
-            self.llvm_as = self.bin_path + 'llvm-as'
-            self.opt = self.bin_path + 'opt'
-            self.llc = self.bin_path + 'llc'
-            assert os.path.exists(self.llvm_as)
-            assert os.path.exists(self.opt)
-            assert os.path.exists(self.llc)
-            cmd = self.llvm_as + ' < /dev/null | ' + self.opt + ' -O3 -disable-output -debug-pass=Arguments 2>&1'
-            pass_arguments = execmd(cmd).split('\n')
-            pass_arguments.remove('')
-            enabled_opts = []
-            for pass_ag in pass_arguments:
-                item = re.findall('Pass Arguments:  (.*)', pass_ag)[0].split(' ')
-                enabled_opts.extend(item)
-            self.o3_opts = enabled_opts
-
         for opt in self.o3_opts:
             write_log(opt, options_rec_file(self.driver))
 
@@ -113,10 +97,6 @@ class Executor:
         """
         if 'gcc' in self.driver:
             self.__compilegcc__(opt_opts=opt_opts)  # optimization level
-            return self.output
-        elif 'clang' in self.driver:
-            self.__compilellvmorig__(opt_opts=opt_opts,  # opt optimization level
-                                     driver_opts='-O0')  # clang optimization level
             return self.output
         write_log('Unknown compiler: ' + self.driver + '.', ERROR_FILE)
         sys.exit()
@@ -154,29 +134,6 @@ class Executor:
                 cmd = self.llc + ' -O0 -filetype=obj ' + basename + '.opt.bc'
                 _ = execmd(cmd)
 
-        linker_opts = driver_opts
-        cmd = ' '.join([self.linker, self.LD_OPTS, linker_opts]) + ' -lm *.o'
-        _ = execmd(cmd)
-
-    def __compilellvmsuo__(self, opt_opts, driver_opts='-O3'):
-        """
-        clang -c -emit-llvm -O3 -mllvm -disable-llvm-optzns
-        => opt -flags => llc
-        => clang
-        => exec
-        """
-        cmd_suo = ' '.join([self.driver, self.libs,
-                            driver_opts]) + ' -emit-llvm -mllvm -disable-llvm-optzns -c ' + self.src_dir + os.sep + '*.c'
-        cmd_prefer = ' '.join([self.driver, self.libs,
-                               driver_opts]) + ' -emit-llvm -Xclang -disable-llvm-passes -c ' + self.src_dir + os.sep + '*.c'
-        _ = execmd(cmd_suo)
-        for bicode in os.listdir('..'):
-            if bicode.endswith('.bc') and (bicode.endswith('.opt.bc') != True):
-                basename = bicode.split('.bc')[0]
-                cmd = self.opt + ' -S ' + opt_opts + ' ' + bicode + ' -o ' + basename + '.opt.bc'
-                _ = execmd(cmd)
-                cmd = self.llc + ' -O0 -filetype=obj ' + basename + '.opt.bc'  # $basename.opt.o
-                _ = execmd(cmd)
         linker_opts = driver_opts
         cmd = ' '.join([self.linker, self.LD_OPTS, linker_opts]) + ' -lm *.o'
         _ = execmd(cmd)
