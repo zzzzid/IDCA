@@ -1,4 +1,4 @@
-# Compiler Auto-tuning through Multiple Phase Learning
+# Compiler Auto-tuning via Critical Flag Selection
 
 In this repository, we provide our code and the data.
 
