@@ -220,7 +220,7 @@ class IDCA:
     def get_critical_flags(self, model):
         candidate_seq = []
         candidate_per = []
-        while len(candidate_seq) < 50000:
+        while len(candidate_seq) < 30000:
             x = random.randint(0, 2 ** self.dim)
             initial_training_instance = self.generate_random_conf(x)
             if initial_training_instance not in candidate_seq:
