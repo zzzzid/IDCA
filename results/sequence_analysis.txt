@@ -1,0 +1,26 @@
+GCC1
+C1:
+best: -fsplit-loops -fpeel-loops -fthread-jumps -funswitch-loops -fno-code-hoisting -finline-functions -fno-caller-saves -fgcse -fno-ipa-icf -foptimize-strlen 
+CFSCA: -fsplit-loops -fpeel-loops -fthread-jumps -funswitch-loops -fno-code-hoisting -finline-functions -fno-caller-saves -fgcse -fno-ipa-icf -foptimize-strlen 
+ 
+C2:
+best: -fno-split-loops -fno-peel-loops -fthread-jumps -fno-unswitch-loops -fno-code-hoisting -fno-inline-functions -fcaller-saves -fgcse -fipa-icf -foptimize-strlen 
+CFSCA: -fno-split-loops -fno-peel-loops -fthread-jumps -funswitch-loops -fno-code-hoisting -fno-inline-functions -fcaller-saves -fgcse -fipa-icf -foptimize-strlen 
+
+C3:
+best: -fno-split-loops -fno-peel-loops -fthread-jumps -funswitch-loops -fno-code-hoisting -finline-functions -fno-caller-saves -fgcse -fno-ipa-icf -fno-optimize-strlen
+CFSCA: -fno-split-loops -fno-peel-loops -fthread-jumps -funswitch-loops -fno-code-hoisting -finline-functions -fcaller-saves -fno-gcse -fno-ipa-icf -fno-optimize-strlen
+
+
+GCC2
+C1:
+best: -fno-unswitch-loops -fno-ree -fno-move-loop-invariants -fno-function-cse -fno-ipa-cp -ftree-ccp -fno-signed-zeros -fcse-follow-jumps -fguess-branch-probability -fno-tree-slsr
+CFSCA: -fno-unswitch-loops -fno-ree -fno-move-loop-invariants -fno-function-cse -fno-ipa-cp -fno-tree-ccp -fno-signed-zeros -fcse-follow-jumps -fguess-branch-probability -fno-tree-slsr
+
+C2:
+best: -fno-unswitch-loops -fno-ree -fno-move-loop-invariants -ffunction-cse -fno-ipa-cp -ftree-ccp -fsigned-zeros -fno-cse-follow-jumps -fguess-branch-probability -ftree-slsr
+CFSCA: -fno-unswitch-loops -fno-ree -fno-move-loop-invariants -ffunction-cse -fno-ipa-cp -ftree-ccp -fsigned-zeros -fno-cse-follow-jumps -fguess-branch-probability -ftree-slsr
+
+C3:
+best: -funswitch-loops -fno-ree -fmove-loop-invariants -fno-function-cse -fipa-cp -fno-tree-ccp -fno-signed-zeros -fno-cse-follow-jumps -fno-guess-branch-probability -fno-tree-slsr 
+CFSCA: -funswitch-loops -free -fmove-loop-invariants -fno-function-cse -fipa-cp -fno-tree-ccp -fno-signed-zeros -fno-cse-follow-jumps -fno-guess-branch-probability -ftree-slsr 
