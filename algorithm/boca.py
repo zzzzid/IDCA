@@ -20,7 +20,7 @@ all_flags = ['-falign-functions', '-falign-jumps', '-falign-labels', '-falign-lo
             '-ftree-loop-im', '-ftree-loop-optimize', '-ftree-loop-vectorize', '-ftree-partial-pre', 
             '-ftree-pre', '-ftree-pta', '-ftree-scev-cprop', '-ftree-sink', '-ftree-slp-vectorize', '-ftree-slsr', 
             '-ftree-sra', '-ftree-switch-conversion', '-ftree-tail-merge', 
-            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides']
+            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides', '-ffast-math', '-fallow-store-data-races']
 
 import os,sys,json
 import random, time, copy,subprocess
@@ -32,7 +32,6 @@ from scipy.stats import norm
 LOG_DIR = 'log' + os.sep
 LOG_FILE = LOG_DIR + 'boca_recordc1.log'
 ACC_FILE = LOG_DIR + 'acc.log'
-time_end = 6000
 
 def write_log(ss, file):
     log = open(file, 'a')
@@ -47,12 +46,10 @@ def execute_terminal_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print("命令执行成功！")
             if result.stdout:
                 print("命令输出：")
                 print(result.stdout)
         else:
-            print("命令执行失败。")
             if result.stderr:
                 print("错误输出：")
                 print(result.stderr)
@@ -70,13 +67,12 @@ def get_objective_score(independent, k_iter):
         else:
             negated_flag_name = all_flags[i].replace("-f", "-fno-", 1)
             opt = opt + negated_flag_name + ' '
-    print(opt)
     time_start = time.time()
     command = "gcc -O2 " + opt + " -c /home/zmx/BOCA_v2.0/benchmarks/cbench/automotive_bitcount/*.c"
     execute_terminal_command(command)
     command2 = "gcc -o a.out -O2 " + opt + " -lm *.o"
     execute_terminal_command(command2)
-    command3 = "./a.out 1125000"
+    command3 = "time ./a.out 1125000"
     execute_terminal_command(command3)
     cmd4 = 'rm -rf *.o *.I *.s a.out'
     execute_terminal_command(cmd4)
@@ -89,7 +85,7 @@ def get_objective_score(independent, k_iter):
     execute_terminal_command(command)
     command2 = "gcc -o a.out -O3 -lm *.o"
     execute_terminal_command(command2)
-    command3 = "./a.out 1125000"
+    command3 = "time ./a.out 1125000"
     execute_terminal_command(command3)
     cmd4 = 'rm -rf *.o *.I *.s a.out'
     execute_terminal_command(cmd4)
@@ -144,7 +140,6 @@ class BOCA:
         """
         Generation 0-1 mapping for disable-enable options
         """
-
         comb = bin(x).replace('0b', '')
         comb = '0' * (self.s_dim - len(comb)) + comb
         conf = []
@@ -258,8 +253,6 @@ class BOCA:
     def run(self):
         """
         Run BOCA algorithm
-
-        :return:
         """
         training_indep = []
         ts = []  # time spend
@@ -287,7 +280,7 @@ class BOCA:
         else:
             sigma = None
         
-        while ts[-1] < time_end:
+        while ts[-1] < 6000:
             steps += 1
             if self.decay:
                 rnum = int(self.rnum0) * math.exp(-max(0, len(training_indep) - self.offset) ** 2 / (2*sigma**2))  # decay

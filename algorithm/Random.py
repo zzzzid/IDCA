@@ -35,8 +35,7 @@ all_flags = ['-falign-functions', '-falign-jumps', '-falign-labels', '-falign-lo
             '-ftree-loop-im', '-ftree-loop-optimize', '-ftree-loop-vectorize', '-ftree-partial-pre', 
             '-ftree-pre', '-ftree-pta', '-ftree-scev-cprop', '-ftree-sink', '-ftree-slp-vectorize', '-ftree-slsr', 
             '-ftree-sra', '-ftree-switch-conversion', '-ftree-tail-merge', 
-            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides']
-
+            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides', '-ffast-math', '-fallow-store-data-races']
 
 def execute_terminal_command(command):
     """ 
@@ -45,12 +44,10 @@ def execute_terminal_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print("命令执行成功！")
             if result.stdout:
                 print("命令输出：")
                 print(result.stdout)
         else:
-            print("命令执行失败。")
             if result.stderr:
                 print("错误输出：")
                 print(result.stderr)
@@ -61,7 +58,6 @@ def generate_random_conf(x):
     """
     Generation 0-1 mapping for disable-enable options
     """
-
     comb = bin(x).replace('0b', '')
     comb = '0' * (len(all_flags) - len(comb)) + comb
     conf = []
@@ -73,15 +69,14 @@ def generate_random_conf(x):
     return conf
 
 if __name__ == "__main__":
-    ts = []
+    ts = []   # time consumption
     res = []  # speedup for different flag combinations
     seqs = [] # different flag combinations
     ts.append(0)
-    time_end = 6000
     time_zero = time.time()
-    while ts[-1] < time_end:
+    while ts[-1] < 6000:
         """
-        random generate
+        Generate random flag combinations
         """
         x = random.randint(0, 2 ** len(all_flags))
         seq = generate_random_conf(x)
@@ -95,38 +90,36 @@ if __name__ == "__main__":
         seq.append(opt)
 
         """
-        calculate the speedup time_o3 / time_opt
+        Calculate the speedup time_o3 / time_opt
         """
         time_start = time.time()
         command = "/home/zmx/gcc8/bin/gcc -O2 " + opt + " -c /home/zmx/BOCA_v2.0/benchmarks/cbench/automotive_bitcount/*.c"
         execute_terminal_command(command)
         command2 = "/home/zmx/gcc8/bin/gcc -o a.out -O2 " + opt + " -lm *.o"
         execute_terminal_command(command2)
-        command3 = "./a.out 1125000"
+        command3 = "time ./a.out 1125000"
         execute_terminal_command(command3)
         cmd4 = 'rm -rf *.o *.I *.s a.out'
         execute_terminal_command(cmd4)
-
         time_end = time.time()  
         time_c = time_end - time_start   #time_opt
-
         time_o3 = time.time()
+
         command = "/home/zmx/gcc8/bin/gcc -O3 -c /home/zmx/BOCA_v2.0/benchmarks/cbench/automotive_bitcount/*.c"
         execute_terminal_command(command)
         command2 = "/home/zmx/gcc8/bin/gcc -o a.out -O3 -lm *.o"
         execute_terminal_command(command2)
-        command3 = "./a.out 1125000"
+        command3 = "time ./a.out 1125000"
         execute_terminal_command(command3)
         cmd4 = 'rm -rf *.o *.I *.s a.out'
         execute_terminal_command(cmd4)
-
         time_o3_end = time.time()  
-        time_o3_c = time_o3_end - time_o3   #time_o3
+        time_o3_c = time_o3_end - time_o3  #time_o3
         res.append(time_o3_c /time_c)
+
         ts.append(time.time()-time_zero)
         seqs.append(seq)
-
         best_per = max(res)
-        best_seq = seqs[res.index(max(res))]
+        best_seq = seqs[res.index(max(res))] 
         ss = '{}: best-per {}, best-seq {}'.format(str(round(ts[-1])), str(best_per), str(best_seq))
         write_log(str(ss),LOG_FILE)

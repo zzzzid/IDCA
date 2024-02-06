@@ -27,8 +27,7 @@ all_flags = ['-falign-functions', '-falign-jumps', '-falign-labels', '-falign-lo
             '-ftree-loop-im', '-ftree-loop-optimize', '-ftree-loop-vectorize', '-ftree-partial-pre', 
             '-ftree-pre', '-ftree-pta', '-ftree-scev-cprop', '-ftree-sink', '-ftree-slp-vectorize', '-ftree-slsr', 
             '-ftree-sra', '-ftree-switch-conversion', '-ftree-tail-merge', 
-            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides']
-
+            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides', '-ffast-math', '-fallow-store-data-races']
 
 LOG_DIR = 'log' + os.sep
 LOG_FILE = LOG_DIR + 'com_recordc1.log'
@@ -47,12 +46,10 @@ def execute_terminal_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print("命令执行成功！")
             if result.stdout:
                 print("命令输出：")
                 print(result.stdout)
         else:
-            print("命令执行失败。")
             if result.stderr:
                 print("错误输出：")
                 print(result.stderr)
@@ -80,7 +77,6 @@ def get_objective_score(independent, k_iter):
     execute_terminal_command(command3)
     cmd4 = 'rm -rf *.o *.I *.s a.out'
     execute_terminal_command(cmd4)
-
     time_end = time.time()  
     time_c = time_end - time_start   #time opt
 
@@ -93,20 +89,14 @@ def get_objective_score(independent, k_iter):
     execute_terminal_command(command3)
     cmd4 = 'rm -rf *.o *.I *.s a.out'
     execute_terminal_command(cmd4)
-
     time_o3_end = time.time()  
     time_o3_c = time_o3_end - time_o3   #time o3
-    print(time_o3_c /time_c)
 
     op_str = "iteration:{} speedup:{}".format(str(k_iter), str(time_o3_c /time_c))
     write_log(op_str, LOG_FILE)
     return (time_o3_c /time_c)
 
-
-opt_seq = [0, 1]
-ts_tem = []
-
-
+ts_tem = []  # time consumption
     
 class compTuner:
     def __init__(self, dim, c1, c2, w, get_objective_score, random):
@@ -132,7 +122,8 @@ class compTuner:
 
     def generate_random_conf(self, x):
         """
-        Generation 0-1 mapping for disable-enable options
+        :param x: random generate number
+        :return: the binary sequence for x
         """
         comb = bin(x).replace('0b', '')
         comb = '0' * (self.dim - len(comb)) + comb
@@ -146,9 +137,9 @@ class compTuner:
 
     def get_ei(self, preds, eta):
         """
-        :param preds:Sequences' speedup for EI
-        :param eta:global best speedup
-        :return:the EI for a sequence
+        :param preds: sequences' speedup for EI
+        :param eta: global best speedup
+        :return: the EI for a sequence
         """
         preds = np.array(preds).transpose(1, 0)
         m = np.mean(preds, axis=1)
@@ -169,10 +160,10 @@ class compTuner:
     
     def get_ei_predict(self, model, now_best, wait_for_train):
         """
-        :param model:RandomForest Model
-        :param now_best:global best speedup
-        :param wait_for_train:Sequences Set
-        :return:the Sequences' EI
+        :param model: RandomForest Model
+        :param now_best: global best speedup
+        :param wait_for_train: sequences set
+        :return: the sequences' EI and the sequences
         """
         preds = []
         estimators = model.estimators_
@@ -183,9 +174,9 @@ class compTuner:
 
     def runtime_predict(self, model, wait_for_train):
         """
-        :param model:model:RandomForest Model
-        :param wait_for_train:Sequences Set
-        :return: the speedup of Sequences Set
+        :param model: RandomForest Model
+        :param wait_for_train: sequences Set
+        :return: the speedup of sequences Set
         """
         estimators = model.estimators_
         sum_of_predictions = np.zeros(len(wait_for_train))
@@ -201,9 +192,9 @@ class compTuner:
     
     def getPrecision(self, model, seq):
         """
-        :param model:
-        :param seq:
-        :return: The precision of a sequence and true speedup
+        :param model: RandomForest Model
+        :param seq: sequence
+        :return: the precision of a sequence and true speedup
         """
         true_running = self.get_objective_score(seq, k_iter=100086)
         estimators = model.estimators_
@@ -216,7 +207,8 @@ class compTuner:
     
     def selectByDistribution(self, merged_predicted_objectives):
         """
-        Assign probabilities for different flag combinations
+        :param merged_predicted_objectives: the sequences' EI and the sequences
+        :return: the selected sequence
         """
         # sequences = [seq for seq, per in merged_predicted_objectives]
         diffs = [abs(perf - merged_predicted_objectives[0][1]) for seq, perf in merged_predicted_objectives]
@@ -238,16 +230,16 @@ class compTuner:
             initial_training_instance = self.generate_random_conf(x)
             if initial_training_instance not in inital_indep:
                 inital_indep.append(initial_training_instance)
-        inital_dep = [self.get_objective_score(indep, k_iter=0) for indep in inital_indep]
+        initial_dep = [self.get_objective_score(indep, k_iter=0) for indep in inital_indep] # initialization
         ts_tem.append(time.time() - time_begin)
-        ss = '{}: best_seq {}, best_per {}'.format(str(round(ts_tem[-1])), str(max(inital_dep)), str(inital_indep[inital_dep.index(max(inital_dep))]))
+        ss = '{}: best_seq {}, best_per {}'.format(str(round(ts_tem[-1])), str(max(initial_dep)), str(inital_indep[inital_dep.index(max(inital_dep))]))
         write_log(ss, LOG_FILE)
         all_acc = []
         model = RandomForestRegressor(random_state=self.random)
-        model.fit(np.array(inital_indep), np.array(inital_dep))
+        model.fit(np.array(inital_indep), np.array(initial_dep))
         rec_size = 2
-        while rec_size <50:
-            global_best = max(inital_dep)
+        while rec_size < 50:
+            global_best = max(initial_dep)
             estimators = model.estimators_
             neighbors = []
             while len(neighbors) < 30000:
@@ -261,7 +253,6 @@ class compTuner:
             acq_val_incumbent = self.get_ei(pred, global_best)
             ei_for_current = [[i, a] for a, i in zip(acq_val_incumbent, neighbors)]
             merged_predicted_objectives = sorted(ei_for_current, key=lambda x: x[1], reverse=True)
-
             acc = 0
             flag = False
             for x in merged_predicted_objectives:
@@ -270,7 +261,7 @@ class compTuner:
                 if x[0] not in inital_indep:
                     inital_indep.append(x[0])
                     acc, lable = self.getPrecision(model, x[0])
-                    inital_dep.append(lable)
+                    initial_dep.append(lable)
                     all_acc.append(acc)
                     flag = True
             rec_size += 1
@@ -280,17 +271,17 @@ class compTuner:
                     indx = self.selectByDistribution(merged_predicted_objectives)
                 inital_indep.append(merged_predicted_objectives[indx][0])
                 acc, label = self.getPrecision(model, merged_predicted_objectives[int(indx)][0])
-                inital_dep.append(label)
+                initial_dep.append(label)
                 all_acc.append(acc)
                 rec_size += 1
             ts_tem.append(time.time() - time_begin)
-            ss = '{}: best_seq {}, best_per {}'.format(str(round(ts_tem[-1])), str(max(inital_dep)), str(inital_indep[inital_dep.index(max(inital_dep))]))
+            ss = '{}: best_seq {}, best_per {}'.format(str(round(ts_tem[-1])), str(max(initial_dep)), str(inital_indep[initial_dep.index(max(initial_dep))]))
             write_log(ss, LOG_FILE)
             model = RandomForestRegressor(random_state=self.random)
-            model.fit(np.array(inital_indep), np.array(inital_dep))
+            model.fit(np.array(inital_indep), np.array(initial_dep))
             if rec_size > 50 and np.mean(all_acc) < 0.04:
                 break
-        return model, inital_indep, inital_dep
+        return model, inital_indep, initial_dep
     
     def getDistance(self, seq1, seq2):
         """
@@ -347,9 +338,6 @@ class compTuner:
         return v
     
     def run(self):
-        """
-        build model and get data set
-        """
         ts = []
         model, inital_indep, inital_dep = self.build_RF_by_CompTuner()
         begin = time.time()
@@ -476,7 +464,5 @@ if __name__ == "__main__":
     com_params['c2'] = 2
     com_params['w'] = 0.6
     com_params['random'] = 456
-
-
     com = compTuner(**com_params)
-    dep, ts = com.run()
+    com.run()

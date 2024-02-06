@@ -35,7 +35,7 @@ GCC_FLAGS = ['-falign-functions', '-falign-jumps', '-falign-labels', '-falign-lo
             '-ftree-loop-im', '-ftree-loop-optimize', '-ftree-loop-vectorize', '-ftree-partial-pre', 
             '-ftree-pre', '-ftree-pta', '-ftree-scev-cprop', '-ftree-sink', '-ftree-slp-vectorize', '-ftree-slsr', 
             '-ftree-sra', '-ftree-switch-conversion', '-ftree-tail-merge', 
-            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides']
+            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides', '-ffast-math', '-fallow-store-data-races']
 
 
 

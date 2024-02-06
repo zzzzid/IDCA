@@ -25,11 +25,11 @@ all_flags = ['-falign-functions', '-falign-jumps', '-falign-labels', '-falign-lo
             '-ftree-loop-im', '-ftree-loop-optimize', '-ftree-loop-vectorize', '-ftree-partial-pre', 
             '-ftree-pre', '-ftree-pta', '-ftree-scev-cprop', '-ftree-sink', '-ftree-slp-vectorize', '-ftree-slsr', 
             '-ftree-sra', '-ftree-switch-conversion', '-ftree-tail-merge', 
-            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides']
+            '-ftree-ter', '-ftree-vrp', '-funroll-completely-grow-size', '-funswitch-loops', '-fvar-tracking', '-fversion-loops-for-strides', '-ffast-math', '-fallow-store-data-races']
 
 
 LOG_DIR = 'log' + os.sep
-LOG_FILE = LOG_DIR + 'cfasc_recordc1.log'
+LOG_FILE = LOG_DIR + 'cfasc_recordc4.log'
 ERROR_FILE = LOG_DIR + 'err.log'
 
 def write_log(ss, file):
@@ -42,19 +42,17 @@ def execute_terminal_command(command):
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print("命令执行成功！")
             if result.stdout:
                 print("命令输出：")
                 print(result.stdout)
         else:
-            print("命令执行失败。")
             if result.stderr:
                 print("错误输出：")
                 print(result.stderr)
     except Exception as e:
         print("执行命令时出现错误：", str(e))
 
-def get_objective_score(independent, time_o3_c, k_iter):
+def get_objective_score(independent, k_iter):
     opt = ''
     for i in range(len(independent)):
         if independent[i]:
@@ -62,26 +60,42 @@ def get_objective_score(independent, time_o3_c, k_iter):
         else:
             negated_flag_name = all_flags[i].replace("-f", "-fno-", 1)
             opt = opt + negated_flag_name + ' '
+
     time_start = time.time()
-    command = "gcc -O2 " + opt + " -c /home/zmx/CFSCA/cBench_V1.1/automotive_bitcount/src/*.c"
+    command = "gcc -O2 " + opt + " -c /data/zmx/CFSCA/cBench/automotive_susan_s/src/*.c"
     execute_terminal_command(command)
     command2 = "gcc -o a.out -O2 " + opt + " -lm *.o"
     execute_terminal_command(command2)
-    command3 = "time ./a.out 1125000"
+    command3 = "./a.out /data/zmx/cBenchdata/automotive_susan_data/1.pgm output_large.smoothing.pgm -s"
     execute_terminal_command(command3)
     cmd4 = 'rm -rf *.o *.I *.s a.out'
     execute_terminal_command(cmd4)
     time_end = time.time()  
-    time_c = time_end - time_start   #运行所花时间
+    time_c = time_end - time_start   #time opt
+
+    time_o3 = time.time()
+    command = "gcc -O3 -c /data/zmx/CFSCA/cBench/automotive_susan_s/src/*.c"
+    execute_terminal_command(command)
+    command2 = "gcc -o a.out -O3 -lm *.o"
+    execute_terminal_command(command2)
+    command3 = "./a.out /data/zmx/cBenchdata/automotive_susan_data/1.pgm output_large.smoothing.pgm -s"
+    execute_terminal_command(command3)
+    cmd4 = 'rm -rf *.o *.I *.s a.out'
+    execute_terminal_command(cmd4)
+
+    time_o3_end = time.time()  
+    time_o3_c = time_o3_end - time_o3   #time o3
+
     print(time_o3_c /time_c)
     op_str = "iteration:{} speedup:{}".format(str(k_iter), str(time_o3_c /time_c))
     write_log(op_str, LOG_FILE)
     return (time_o3_c /time_c)
 
-        
+
+      
 time_tem = []
 class CFSCA:
-    def __init__(self, dim, get_objective_score, seed, related_flags, std):
+    def __init__(self, dim, get_objective_score, seed, related_flags):
         """
         :param dim: number of compiler flags
         :param get_objective_score: obtain true speedup
@@ -92,14 +106,14 @@ class CFSCA:
         self.get_objective_score = get_objective_score
         self.seed = seed
         self.related = related_flags
-        self.stdtime = std
         self.critical = []
         self.global_best_per = 0.0
         self.global_best_seq = []
 
     def generate_random_conf(self, x):
         """
-        Generation 0-1 mapping for disable-enable options
+        :param x: random generate number
+        :return: the binary sequence for x
         """
         comb = bin(x).replace('0b', '')
         comb = '0' * (self.dim - len(comb)) + comb
@@ -113,9 +127,9 @@ class CFSCA:
 
     def get_ei(self, preds, eta):
         """
-        :param preds:Sequences' speedup for EI
-        :param eta:global best speedup
-        :return:the EI for a sequence
+        :param preds: sequences' speedup for EI
+        :param eta: global best speedup
+        :return: the EI of a sequence
         """
         preds = np.array(preds).transpose(1, 0)
         m = np.mean(preds, axis=1)
@@ -136,10 +150,10 @@ class CFSCA:
 
     def get_ei_predict(self, model, now_best, wait_for_train):
         """
-        :param model:RandomForest Model
-        :param now_best:global best speedup
-        :param wait_for_train:Sequences Set
-        :return:the Sequences' EI
+        :param model: RandomForest Model
+        :param now_best: global best speedup
+        :param wait_for_train: sequences Set
+        :return: the sequences' EI
         """
         preds = []
         estimators = model.estimators_
@@ -150,9 +164,9 @@ class CFSCA:
     
     def runtime_predict(self, model, wait_for_train):
         """
-        :param model:model:RandomForest Model
-        :param wait_for_train:Sequences Set
-        :return: the speedup of Sequences Set
+        :param model: RandomForest Model
+        :param wait_for_train: sequences set
+        :return: the speedup of sequences set
         """
         estimators = model.estimators_
         sum_of_predictions = np.zeros(len(wait_for_train))
@@ -168,11 +182,11 @@ class CFSCA:
     
     def getPrecision(self, model, seq):
         """
-        :param model:
-        :param seq:
-        :return: The precision of a sequence and true speedup
+        :param model: RandomForest Model
+        :param seq: sequence for prediction
+        :return: the precision of a sequence and true speedup
         """
-        true_running = self.get_objective_score(seq, self.stdtime,k_iter=100086)
+        true_running = self.get_objective_score(seq, k_iter=100086)
         estimators = model.estimators_
         res = []
         for e in estimators:
@@ -183,7 +197,8 @@ class CFSCA:
     
     def selectByDistribution(self, merged_predicted_objectives):
         """
-        Assign probabilities for different flag combinations
+        :param merged_predicted_objectives: the sequences' EI and the sequences
+        :return: the selected sequence
         """
         # sequences = [seq for seq, per in merged_predicted_objectives]
         diffs = [abs(perf - merged_predicted_objectives[0][1]) for seq, perf in merged_predicted_objectives]
@@ -195,7 +210,7 @@ class CFSCA:
     
     def build_RF_by_CompTuner(self):
         """
-        :return: model, initial_indep, initial_dep
+        :return: model, inital_indep, inital_dep
         """
         inital_indep = []
         time_begin = time.time()
@@ -205,7 +220,7 @@ class CFSCA:
             initial_training_instance = self.generate_random_conf(x)
             if initial_training_instance not in inital_indep:
                 inital_indep.append(initial_training_instance)
-        inital_dep = [self.get_objective_score(indep, self.stdtime, k_iter=0) for indep in inital_indep]
+        inital_dep = [self.get_objective_score(indep, k_iter=0) for indep in inital_indep]
         
         all_acc = []
         time_tem.append(time.time() - time_begin)
@@ -259,12 +274,19 @@ class CFSCA:
             write_log(ss, LOG_FILE)
         self.global_best_per = max(inital_dep)
         self.global_best_seq = inital_indep[inital_dep.index(max(inital_dep))]
-        return model
+        return model, inital_indep, inital_dep
     
-    def get_critical_flags(self, model):
+    def get_critical_flags(self, model, inital_indep, inital_dep):
+        """
+        :param: model: RandomForest Model
+        :param: inital_indep: selected sequences
+        :param: inital_dep: selected sequences' performance
+        :return: critical_flags_idx, new_model
+        """
         candidate_seq = []
         candidate_per = []
-        
+        inital_indep_temp = copy.deepcopy(inital_indep)
+        inital_dep_temp = copy.deepcopy(inital_dep)
         while len(candidate_seq) < 30000:
             x = random.randint(0, 2 ** self.dim)
             initial_training_instance = self.generate_random_conf(x)
@@ -276,6 +298,11 @@ class CFSCA:
         pos_seq = [0] * len(self.related)    
         now_best = max(candidate_per)
         now_best_seq = candidate_seq[candidate_per.index(now_best)]
+        now_best = self.get_objective_score(now_best_seq, k_iter=100086)
+        inital_indep_temp.append(now_best_seq)
+        inital_dep_temp.append(now_best)
+        model_new = RandomForestRegressor(random_state=self.seed)
+        model_new.fit(np.array(inital_indep_temp), np.array(inital_dep_temp))
         before_time = time_tem[-1]
         time_tem.append(time.time() - begin + before_time)
         if self.global_best_per < now_best:
@@ -290,17 +317,25 @@ class CFSCA:
                 seq = copy.deepcopy(candidate_seq[j])
                 seq[self.related[idx]] = 1 - seq[self.related[idx]]
                 new_candidate.append(seq)
-            new_per = [all[1] for all in self.runtime_predict(model,new_candidate)]
-            if max(new_per) > self.global_best_per:
-                self.global_best_per = max(new_per)
-                self.global_best_seq = new_candidate[new_per.index(now_best)]
+            new_per = [all[1] for all in self.runtime_predict(model_new,new_candidate)]
+            new_seq = [all[0] for all in self.runtime_predict(model_new,new_candidate)]
+            new_best_seq = new_seq[new_per.index(max(new_per))]
+            new_best = self.get_objective_score(new_best_seq, k_iter=100086)
+            if new_best > self.global_best_per:
+                self.global_best_per = new_best
+                self.global_best_seq = new_best_seq
 
             for l in range(len(new_candidate)):
                 if (candidate_per[l] > new_per[l] and new_candidate[l][self.related[idx]] == 1) or (candidate_per[l] < new_per[l] and new_candidate[l][self.related[idx]] == 0):
                     pos_seq[idx] -= 1
                 else:
                     pos_seq[idx] += 1
+            inital_indep_temp.append(new_best_seq)
+            inital_dep_temp.append(new_best)
+            model_new = RandomForestRegressor(random_state=self.seed)
+            model_new.fit(np.array(inital_indep_temp), np.array(inital_dep_temp))
             time_tem.append(time.time() - begin + before_time)
+            
             ss = '{}: best_seq {}, best_per {}'.format(str(round(time_tem[-1])), str(self.global_best_per), str(self.global_best_seq))
             write_log(ss, LOG_FILE)
 
@@ -308,19 +343,24 @@ class CFSCA:
         critical_flag_idx = []
         for i in range(10):
             critical_flag_idx.append(self.related[sort_pos[i][0]])
-        return critical_flag_idx
+        return critical_flag_idx, model_new
     
     def searchBycritical(self, critical_flag):
+        """
+        :param: critical_flag: idx of critical flag
+        :return: the bias generation sequences
+        """
         permutations = list(itertools.product([0, 1], repeat=10))
         seqs = []
-        while len(seqs) < 1024:
+        while len(seqs) < 1024 * 40:
             x = random.randint(0, 2 ** self.dim)
             initial_training_instance = self.generate_random_conf(x)
             if initial_training_instance not in seqs:
                 seqs.append(initial_training_instance)
         for i in range(len(permutations)):
             for idx in range(len(critical_flag)):
-                seqs[i][critical_flag[idx]] = permutations[i][idx]
+                for offset in range(0, 1024 * 40, 1024):
+                    seqs[i + offset][critical_flag[idx]] = permutations[i][idx]
         return seqs
     
     def run(self):
@@ -328,22 +368,36 @@ class CFSCA:
         """
         build model and get data set
         """
-        model = self.build_RF_by_CompTuner()
-        time_set_up = 6000
+        model, inital_indep, inital_dep = self.build_RF_by_CompTuner()
+        critical_flag, model_new = self.get_critical_flags(model, inital_indep, inital_dep)
         all_before = time_tem[-1]
-        critical_flag = self.get_critical_flags(model)
         begin_all = time.time()
-        while (time_tem[-1] < time_set_up):
+        while (time_tem[-1] < 6000):
             seq = self.searchBycritical(critical_flag)
-            result = self.runtime_predict(model,seq)
-            sorted_result = sorted(result, key=lambda x: x[1])
-            if sorted_result[0][1] > self.global_best_per:
-                self.global_best_per = sorted_result[0][1]
+            result = self.runtime_predict(model_new, seq)
+            sorted_result = sorted(result, key=lambda x: x[1], reverse=True)
+            true_reslut = self.get_objective_score(sorted_result[0][0], k_iter=0)
+            if true_reslut > self.global_best_per:
+                self.global_best_per = true_reslut
                 self.global_best_seq = sorted_result[0][0]
             time_tem.append(time.time() - begin_all + all_before)
             ss = '{}: cur-best {}, cur-best-seq {}'.format(str(round(time_tem[-1])), str(self.global_best_per), str(self.global_best_seq))
             write_log(ss, LOG_FILE)
-        best_result = self.get_objective_score(self.global_best_seq, self.stdtime, k_iter=0)
+        best_result = self.get_objective_score(self.global_best_seq, k_iter=0)
         ss = '{}: cur-best {}, cur-best-seq {}'.format(str(round(time_tem[-1])), str(best_result), str(self.global_best_seq))
     
  
+if __name__ == '__main__':
+
+    
+    if not os.path.exists(LOG_DIR):
+        os.system('mkdir '+LOG_DIR)
+
+    cfsca_params = {}
+    cfsca_params['dim'] = len(all_flags)
+    cfsca_params['get_objective_score'] = get_objective_score
+    cfsca_params['seed'] = 456
+    cfsca_params['related_flags'] = [7, 13, 14, 15, 16, 20, 23, 24, 25, 26, 27, 29, 30, 31, 34, 36, 37, 38, 39, 40, 41, 42, 43, 44, 47, 49, 50, 52, 53, 55, 56, 57, 60, 63, 64, 65, 73, 75, 76, 81, 82, 83, 84, 85, 86, 87, 90, 93, 94, 95, 96, 97, 100, 107, 109, 110, 112]
+    idca = CFSCA(**cfsca_params)
+
+    idca.run()
